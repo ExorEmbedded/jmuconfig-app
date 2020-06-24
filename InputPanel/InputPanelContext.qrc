@@ -1,0 +1,5 @@
+<RCC>
+    <qresource prefix="/InputPanelContextPlugin.json">
+        <file>InputPanelContextPlugin.json</file>
+    </qresource>
+</RCC>

@@ -1,0 +1,13 @@
+<RCC>
+    <qresource prefix="/">
+        <file>drag.png</file>
+        <file alias="clear.png">Very-Basic-Cancel-icon.png</file>
+        <file>nodrag.png</file>
+        <file>power.png</file>
+        <file alias="settings.png">Settings-50.png</file>
+        <file>zoom_out.png</file>
+        <file>zoom_fit.png</file>
+        <file>zoom_in.png</file>
+        <file>small_loading.gif</file>
+    </qresource>
+</RCC>

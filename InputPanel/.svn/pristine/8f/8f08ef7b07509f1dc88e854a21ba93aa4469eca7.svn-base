@@ -1,0 +1,8 @@
+This SVN repository can be accessed thru the git-svn command.
+
+To setup your clone run connectToSvn.sh.
+
+Then use:
+
+git svn fetch                 # to fetch new revisions from svn
+git svn dcommit               # to commit to svn

@@ -1,0 +1,7 @@
+<jmlauncher>
+<package>
+  <name>Webkit Browser</name>
+  <installationFolder>webkit_browser</installationFolder>
+  <version>0.8</version>
+</package>
+</jmlauncher>

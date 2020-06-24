@@ -1,0 +1,7 @@
+<jmlauncher>
+<package>
+  <name>HMI Client</name>
+  <installationFolder>qthmi</installationFolder>
+  <version>0.0.0.1</version>
+</package>
+</jmlauncher>
