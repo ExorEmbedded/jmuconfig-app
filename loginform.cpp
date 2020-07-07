@@ -29,20 +29,27 @@ QString LoginForm::password() const
 
 
 void LoginForm::showEvent(QShowEvent* s)
-{	
+{
 	m_accepted = false;
-	ui->usernameEdit->setFocus();
 	if (parentWidget()) {
 		parentWidget()->installEventFilter(this);
 		setGeometry(QRect(0,0,parentWidget()->width(), parentWidget()->height()));
 	}
 	QWidget::showEvent(s);
+
+	ui->usernameEdit->setFocus();
+
+#if QT_VERSION >= 0x050000
+	QApplication *app = dynamic_cast<QApplication*>(QApplication::instance());
+	if (app)
+		app->inputMethod()->show();
+#endif
 }
 
 void LoginForm::hideEvent(QHideEvent* s)
 {
 	if (parentWidget())
-		parentWidget()->removeEventFilter(this);	
+		parentWidget()->removeEventFilter(this);
 	QWidget::hideEvent(s);
 }
 
@@ -62,7 +69,7 @@ void LoginForm::on_loginButtons_accepted()
 
 void LoginForm::on_loginButtons_rejected()
 {
-	m_accepted = false;   
+	m_accepted = false;
 }
 
 void LoginForm::on_usernameEdit_returnPressed()
