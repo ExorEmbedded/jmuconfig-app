@@ -118,7 +118,7 @@ struct FlickData {
 				// frame->setScrollPosition(position - QPoint(dx, dy));
 				if (dy) {
 					// post a fake wheel event to webpage to allow div scrolling => if event is ignored scroll the webview
-					QWheelEvent scrollEventVertical (hotPoint, dy + !(dy % 120),  Qt::NoButton, Qt::NoModifier, Qt::Vertical);
+					QWheelEvent scrollEventVertical (hotPoint, 2*dy + !(dy % 120),  Qt::NoButton, Qt::NoModifier, Qt::Vertical);
 					scrollEventVertical.setAccepted(false);
 					bool rc = qApp->sendEvent(webView->page(), &scrollEventVertical);
 					if (! scrollEventVertical.isAccepted() ) {
@@ -129,12 +129,12 @@ struct FlickData {
 				}
 				if (dx) {
 					// post a fake wheel event to webpage to allow div scrolling => if event is ignored scroll the webview
-					QWheelEvent scrollEventHorizontal (hotPoint, dx + !(dx % 120),  Qt::NoButton, Qt::NoModifier, Qt::Horizontal);
+					QWheelEvent scrollEventHorizontal (hotPoint, 2*dx + !(dx % 120),  Qt::NoButton, Qt::NoModifier, Qt::Horizontal);
 					scrollEventHorizontal.setAccepted(false);
 					bool rc = qApp->sendEvent(webView->page(), &scrollEventHorizontal);
 					if (! scrollEventHorizontal.isAccepted() ) {
 						// event not accepted by page (scroll on page divs) => try a view scroll
-						frame->setScrollPosition(position - QPoint(0, dy));
+						//frame->setScrollPosition(position - QPoint(dx, 0));
 						rc = frame->scrollPosition() != position;
 					}
 				}
