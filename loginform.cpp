@@ -8,8 +8,7 @@ LoginForm::LoginForm(QWidget *parent) :
 	m_accepted = false;
 	ui->setupUi(this);
 	setVisible(false);
-	connect(ui->loginButtons, SIGNAL(accepted()), this, SIGNAL(accepted()));
-	connect(ui->loginButtons, SIGNAL(rejected()), this, SIGNAL(rejected()));
+	ui->loginButtons->setStyleSheet("");
 }
 
 LoginForm::~LoginForm()
@@ -44,6 +43,8 @@ void LoginForm::showEvent(QShowEvent* s)
 	if (app)
 		app->inputMethod()->show();
 #endif
+
+	setEnabled(true);
 }
 
 void LoginForm::hideEvent(QHideEvent* s)
@@ -51,6 +52,10 @@ void LoginForm::hideEvent(QHideEvent* s)
 	if (parentWidget())
 		parentWidget()->removeEventFilter(this);
 	QWidget::hideEvent(s);
+
+	ui->usernameEdit->setText("");
+	ui->passwordEdit->setText("");
+	ui->errMessage->setText("");
 }
 
 bool LoginForm::eventFilter(QObject *, QEvent * e)
@@ -62,24 +67,46 @@ bool LoginForm::eventFilter(QObject *, QEvent * e)
 	return false;
 }
 
+void LoginForm::setEnabled(bool enabled) {
+	ui->loginButtons->setEnabled(enabled);
+	ui->usernameEdit->setEnabled(enabled);
+	ui->passwordEdit->setEnabled(enabled);
+}
+
+void LoginForm::accept(bool accept) {
+	m_accepted = accept;
+	if (m_accepted) {
+		ui->errMessage->setText("");
+		setEnabled(false);
+		// This delay is just for visual feedback ( error message is cleared and will be eventally set again )
+		QTimer::singleShot(500, this, SIGNAL(accepted()));
+	} else
+		emit rejected();
+}
+
 void LoginForm::on_loginButtons_accepted()
 {
-    m_accepted = true;
+	accept(true);
 }
 
 void LoginForm::on_loginButtons_rejected()
 {
-	m_accepted = false;
+	accept(false);
 }
 
 void LoginForm::on_usernameEdit_returnPressed()
 {
-    m_accepted = true;
-	emit accepted();
+	accept(true);
 }
 
 void LoginForm::on_passwordEdit_returnPressed()
 {
-    m_accepted = true;
-	emit accepted();
+	accept(true);
+}
+
+void LoginForm::reject(const QString& err)
+{
+	ui->errMessage->setText(err.isEmpty() ? "Authentication failed" : err);
+	ui->passwordEdit->setText("");
+	setEnabled(true);
 }

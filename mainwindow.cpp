@@ -982,6 +982,8 @@ void MainWindow::authenticationRequired(QNetworkReply * reply, QAuthenticator * 
 		}
 	} else {	
 		m_loginForm->show();
+		if ( m_authRetries > 0 )
+			m_loginForm->reject();
 		QEventLoop loop;
 		connect(m_loginForm, SIGNAL(accepted()), &loop, SLOT(quit()));
 		connect(m_loginForm, SIGNAL(rejected()), &loop, SLOT(quit()));
