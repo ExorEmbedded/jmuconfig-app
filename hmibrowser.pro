@@ -40,7 +40,7 @@ INCLUDEPATH+=InputPanel
 
 OTHER_FILES += simpledeploypkg.sh scripts/run.sh scripts/start.sh scripts/stop.sh scripts/uninstall.sh scripts/install.sh scripts/package.info
 
-LIBS += -lX11
+!wayland : LIBS += -lX11
 
 FORMS += \
     browsersettings.ui \
