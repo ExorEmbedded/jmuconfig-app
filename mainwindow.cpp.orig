@@ -1020,14 +1020,30 @@ void MainWindow::calcZoom()
 
 void MainWindow::adjustVerticalScrollBar()
 {
+	// check if the vertical scrollbar's min and max values are the same. In that case,
+	// hide the scrollbar
+	int min = m_view->page()->mainFrame()->scrollBarMinimum(Qt::Vertical);
+	int max = m_view->page()->mainFrame()->scrollBarMaximum(Qt::Vertical);
+	if (min == max)
+		m_view->page()->mainFrame()->setScrollBarPolicy(Qt::Vertical, Qt::ScrollBarAlwaysOff);
 }
 
 void MainWindow::adjustScrollbars()
 {
-	if (m_settings->settings.zoomToFit || m_settings->settings.hideScrollbars) {
+	if (m_settings->settings.dragOnTouch) {
+		m_view->page()->mainFrame()->setScrollBarPolicy(Qt::Vertical, Qt::ScrollBarAlwaysOff);
 		m_view->page()->mainFrame()->setScrollBarPolicy(Qt::Horizontal, Qt::ScrollBarAlwaysOff);
 	} else {
-		m_view->page()->mainFrame()->setScrollBarPolicy(Qt::Horizontal, Qt::ScrollBarAsNeeded);
+		if (m_settings->settings.zoomToFit || m_settings->settings.hideScrollbars) {
+			m_view->page()->mainFrame()->setScrollBarPolicy(Qt::Horizontal, Qt::ScrollBarAlwaysOff);
+		} else {
+			m_view->page()->mainFrame()->setScrollBarPolicy(Qt::Horizontal, Qt::ScrollBarAsNeeded);			
+		}
+		
+		if(m_settings->settings.hideScrollbars)
+			m_view->page()->mainFrame()->setScrollBarPolicy(Qt::Vertical, Qt::ScrollBarAlwaysOff);
+		else
+			m_view->page()->mainFrame()->setScrollBarPolicy(Qt::Vertical, Qt::ScrollBarAsNeeded);
 	}
 }
 

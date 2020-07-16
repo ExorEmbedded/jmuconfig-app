@@ -201,8 +201,6 @@ void FlickCharm::activateOn(QWidget *widget, bool wheelOnDragWorkaround)
 	QWebView *webView = qobject_cast<QWebView*>(widget);
 	if (webView) {
 		QWebFrame *frame = webView->page()->mainFrame();
-		frame->setScrollBarPolicy(Qt::Vertical, Qt::ScrollBarAlwaysOff);
-		frame->setScrollBarPolicy(Qt::Horizontal, Qt::ScrollBarAlwaysOff);
 		
 		webView->installEventFilter(this);
 		
