@@ -36,6 +36,7 @@ void LoginForm::showEvent(QShowEvent* s)
 	}
 	QWidget::showEvent(s);
 
+	setEnabled(true);
 	ui->usernameEdit->setFocus();
 
 #if QT_VERSION >= 0x050000
@@ -43,8 +44,6 @@ void LoginForm::showEvent(QShowEvent* s)
 	if (app)
 		app->inputMethod()->show();
 #endif
-
-	setEnabled(true);
 }
 
 void LoginForm::hideEvent(QHideEvent* s)

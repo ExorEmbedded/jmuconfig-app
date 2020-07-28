@@ -266,6 +266,7 @@ private:
 	/*! Show location bar after 3 connection attempts */
 	bool m_autoShowLocationBar;
 	bool m_loadingInitialPage;
+	bool m_useDefaultAuth;
 	int m_retryCount;
 	int m_authRetries;
 	

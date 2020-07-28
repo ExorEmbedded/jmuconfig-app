@@ -87,6 +87,7 @@ MainWindow::MainWindow(BrowserSettings* settings)
 	, m_zoomToFitAction(NULL)
 	, m_settings(settings)
 	, m_authRetries(0)
+	, m_useDefaultAuth(true)
 	, m_settingsPopup(false)
 	, m_loader(NULL)
 	, m_loadRequested(true) // first load is treated as requested
@@ -570,7 +571,7 @@ void MainWindow::updateSettingsVisibility()
 void MainWindow::createToolBar()
 {
 	qDebug() << "Creating toolbar...";
-	
+
 	m_toolBar = addToolBar(tr("Navigation"));
 	m_toolBar->setFloatable(false);
 	m_toolBar->setMovable(false);
@@ -579,19 +580,19 @@ void MainWindow::createToolBar()
 	m_toolBar->addAction(m_view->pageAction(QWebPage::Reload));
 	m_toolBar->addAction(m_view->pageAction(QWebPage::Stop));
 	m_toolBar->addAction(m_locationEditAction);
-	
+
 	m_toolBar->addSeparator();
-	
+
 	m_toolBar->addAction(m_zoomToFitAction);
 	m_toolBar->addAction(m_zoomInAction);
 	m_toolBar->addAction(m_zoomOutAction);
-	
+
 	m_toolBar->addAction(m_dragAction);
 	m_toolBar->addAction(m_settingsAction);
-	
+
 #ifdef Q_WS_WINCE
 	toolBar->addSeparator();
-	
+
 	bool m_bKioskMode=false;
 	const QStringList &args = qApp->arguments();
 	QStringList::const_iterator constIterator;
@@ -600,7 +601,7 @@ void MainWindow::createToolBar()
 		if ((*constIterator).compare("-kiosk", Qt::CaseInsensitive) == 0)
 			m_bKioskMode = true;
 	}
-	
+
 	if (!m_bKioskMode) {
 		QAction* closeAction = new QAction(this);
 		closeAction->setToolTip("Exit");
@@ -608,7 +609,7 @@ void MainWindow::createToolBar()
 		connect(closeAction, SIGNAL(triggered()), qApp, SLOT(quit()));
 		toolBar->addAction(closeAction);
 	}
-#endif	
+#endif
 	if (m_settings && m_settings->isVisible())
 		m_settings->raise();
 }
@@ -617,7 +618,8 @@ void MainWindow::loadUrl(const QString &url)
 {
 	// reset auth retries
 	m_authRetries = 0;
-	
+	m_useDefaultAuth = true;
+
 	m_view->setUrl(url);
 	qDebug() << "Load " << url;
 	//m_view->setFocus();
@@ -974,13 +976,14 @@ void MainWindow::authenticationRequired(QNetworkReply * reply, QAuthenticator * 
 	Q_UNUSED(reply);
 
 	qDebug() << "Authentication required " << authenticator;
-	
-	if (m_authRetries == 0 && !m_settings->settings.defaultUser.isEmpty()) {
+
+	if (m_useDefaultAuth && !m_settings->settings.defaultUser.isEmpty()) {
+		m_useDefaultAuth = false;
 		if (authenticator) {
 			authenticator->setUser(m_settings->settings.defaultUser);
 			authenticator->setPassword(m_settings->settings.defaultPassword);
 		}
-	} else {	
+	} else {
 		m_loginForm->show();
 		if ( m_authRetries > 0 )
 			m_loginForm->reject();
@@ -998,8 +1001,8 @@ void MainWindow::authenticationRequired(QNetworkReply * reply, QAuthenticator * 
 			}
 		}
 		m_loginForm->hide();
+		m_authRetries++;
 	}
-	m_authRetries++;
 }
 
 void MainWindow::calcZoom()
