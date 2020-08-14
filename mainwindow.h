@@ -44,7 +44,6 @@
 #else
 #include <QtWidgets>
 #endif
-#include <QSslError>
 #include <QTimer>
 #include <QWebPage>
 #include "browsersettings.h"
@@ -231,7 +230,6 @@ protected slots:
     void removeEmbeddedElements();
 
 	void networkRequestFinished(class QNetworkReply * reply);
-	void sslErrors(class QNetworkReply *, QList<QSslError>);
     void authenticationRequired(class QNetworkReply *, class QAuthenticator *);
 	void calcZoom();
 	void adjustScrollbars();

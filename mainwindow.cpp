@@ -177,8 +177,6 @@ MainWindow::MainWindow(BrowserSettings* settings)
 	m_nman = new CustomNetworkAccessManager(settings, this);
 	connect(m_nman, SIGNAL(finished(QNetworkReply *)), this,
 			SLOT(networkRequestFinished(QNetworkReply *)));
-	connect(m_nman, SIGNAL(sslErrors(QNetworkReply *, QList<QSslError>)),
-			this, SLOT(sslErrors(QNetworkReply *, QList<QSslError>)));
 	connect(m_nman, SIGNAL(authenticationRequired(QNetworkReply *, QAuthenticator *)),
 			this, SLOT(authenticationRequired(QNetworkReply *, QAuthenticator *)));
 	
@@ -954,13 +952,6 @@ void MainWindow::removeEmbeddedElements()
 {
 	QString code = "$('embed').remove()";
 	m_view->page()->mainFrame()->evaluateJavaScript(code);
-}
-
-void MainWindow::sslErrors(QNetworkReply * reply, QList<QSslError>)
-{
-	// ingore ssl errors
-	if (reply)
-		reply->ignoreSslErrors();
 }
 
 void MainWindow::networkRequestFinished(QNetworkReply * reply)
