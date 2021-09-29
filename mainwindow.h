@@ -229,6 +229,7 @@ protected slots:
     void removeObjectElements();
     void removeEmbeddedElements();
 
+	void bruteForceAutoReload();
 	void networkRequestFinished(class QNetworkReply * reply);
     void authenticationRequired(class QNetworkReply *, class QAuthenticator *);
 	void calcZoom();
@@ -264,9 +265,9 @@ private:
 	/*! Show location bar after 3 connection attempts */
 	bool m_autoShowLocationBar;
 	bool m_loadingInitialPage;
-	bool m_useDefaultAuth;
 	int m_retryCount;
 	int m_authRetries;
+	bool m_useDefaultAuth;
 	
 	// Show settings logic
 	QPoint m_lastPressedPos;

@@ -37,6 +37,10 @@ public:
 protected:	
 	virtual QNetworkReply *	createRequest ( Operation op, const QNetworkRequest & req, QIODevice * outgoingData = 0 )
 	{
+		QNetworkRequest r = req;
+
+		r.setRawHeader("User-Agent", req.rawHeader("User-Agent") + " jmuconfig-app");
+
 		if (!m_exitHandler.isEmpty()) {
 			// Quits application is url matches the exit pattern
 			if (req.url().toString().contains(m_exitHandler)) {
@@ -44,7 +48,7 @@ protected:
 				qApp->quit();
 			}
 		}
-		return QNetworkAccessManager::createRequest(op, req, outgoingData);
+		return QNetworkAccessManager::createRequest(op, r, outgoingData);
 	}
 private:
 	QString m_exitHandler;
@@ -69,7 +73,7 @@ bool CustomWebPage::shouldInterruptJavaScript()
 		return true;
 	default:
 		// Use the default implementation ( shows the dialog )
-		QWebPage::shouldInterruptJavaScript();
+		return QWebPage::shouldInterruptJavaScript();
 	}
 }
 
@@ -954,19 +958,46 @@ void MainWindow::removeEmbeddedElements()
 	m_view->page()->mainFrame()->evaluateJavaScript(code);
 }
 
-void MainWindow::networkRequestFinished(QNetworkReply * reply)
+void MainWindow::bruteForceAutoReload()
 {
-	Q_UNUSED(reply);
+	qDebug() << "Quitting after Brute Force detection";
 
-	//	qDebug() << "Loading finished" << reply->url();
+	qApp->quit();
 }
 
+void MainWindow::networkRequestFinished(QNetworkReply * reply)
+{
+	//qDebug() << "Loading finished" << reply->url();
+
+	switch (reply->error()) {
+	    	case QNetworkReply::NoError:
+			break;
+		// HTTP status 429 Too Many Requests
+		case QNetworkReply::UnknownContentError:
+		{
+			QByteArray retryAfter = reply->rawHeader("Retry-After");
+			if (!retryAfter.isEmpty()) {
+				qDebug() << "Brute Force prevention in place - Retry-After" << retryAfter;
+
+				int ra = retryAfter.toInt() * 1000;
+
+				QTimer::singleShot(ra, this, SLOT(bruteForceAutoReload()));
+			}
+			break;
+		}
+		default:
+			qDebug() << "Unhandled error: " << reply->error();
+			break;
+	}
+
+	reply->deleteLater();
+}
 
 void MainWindow::authenticationRequired(QNetworkReply * reply, QAuthenticator * authenticator)
 {
 	Q_UNUSED(reply);
 
-	qDebug() << "Authentication required " << authenticator;
+	qDebug() << "Authentication required " << authenticator << "url" << reply->url();
 
 	if (m_useDefaultAuth && !m_settings->settings.defaultUser.isEmpty()) {
 		m_useDefaultAuth = false;
@@ -982,6 +1013,7 @@ void MainWindow::authenticationRequired(QNetworkReply * reply, QAuthenticator * 
 		connect(m_loginForm, SIGNAL(accepted()), &loop, SLOT(quit()));
 		connect(m_loginForm, SIGNAL(rejected()), &loop, SLOT(quit()));
 		loop.exec();
+
 		if (m_loginForm->isAccepted() && authenticator) {
 			authenticator->setPassword(m_loginForm->password());
 			authenticator->setUser(m_loginForm->username());
