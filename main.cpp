@@ -30,13 +30,13 @@ public:
 	QRect inputMethodQuery(QWidget* w, Qt::InputMethodQuery query )
 	{
 		Q_UNUSED(query);
-            
+
 		if (w == m_view && m_view &&  m_view->page()) {
 			return m_view->page()->inputMethodQuery(Qt::ImMicroFocus).toRect();
 		}
 		return QRect();
 	}
-	
+
 private:
 	QPointer<QWebView> m_view;
 };
@@ -62,12 +62,12 @@ int main(int argc, char * argv[])
 	qDebug() << "qws!!!";
 	QWSServer::setBackground(Qt::black);
 #endif
-	
+
 	QApplication app(argc, argv);
 
     // cursor is initially blank
     app.setOverrideCursor(Qt::BlankCursor);
-	
+
 	if (app.arguments().contains("-h")) {
 		qDebug() << "./fancybrowser [url]\n"
 					"\nOptions:\n"
@@ -92,6 +92,7 @@ int main(int argc, char * argv[])
 					"[-p <default_password> default password]\n"
 					"[-ck enable cookies]\n"
 					"[-st <seconds> set settings dialog hold timeout]\n"
+					"[-wff <file> wait for provided flag file for synchronization]\n"
 #ifdef linux
 					"[-r <nice level> renice application]\n"
 #endif
@@ -99,7 +100,7 @@ int main(int argc, char * argv[])
 					"[-i <userAgent> browser identification]\n";
 		return 0;
 	}
-	
+
 #if QT_VERSION < 0x050000
 #ifdef OS_INPUT_PANEL
 	InputPanelContext ic(&app);
@@ -110,21 +111,20 @@ int main(int argc, char * argv[])
 	app.setInputContext(ic);
 #endif
 #endif
-	
 
 	BrowserSettings settings;
-	
+
 	MainWindow *browser = new MainWindow(&settings);
-	
+
 #if QT_VERSION < 0x050000
 	WebkitInputPanelContextHook* hook = new WebkitInputPanelContextHook(browser->webview());
 	ic.registerInputPanelContextHook(hook);
 #endif
-	
+
 	app.setStyle(new RequestSoftwareInputPanelProxyStyle);
-	
+
 	app.setApplicationVersion(WEBKITBROWSER_VERSION);
-	
+
 #if defined Q_OS_SYMBIAN || defined Q_WS_HILDON || defined Q_WS_MAEMO_5 || defined Q_WS_SIMULATOR
 	browser->show();//FullScreen();
 #else

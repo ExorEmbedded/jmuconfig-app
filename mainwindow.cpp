@@ -33,8 +33,9 @@ public:
         if (settings->settings.enableCookies)
 		    setCookieJar(&m_cookieJar);
 	}
+#ifndef EXITPATTERN_CHECK_ON_REPLY
 	void setExitPattern(const QString& exitHandler) { m_exitHandler = exitHandler; }
-protected:	
+protected:
 	virtual QNetworkReply *	createRequest ( Operation op, const QNetworkRequest & req, QIODevice * outgoingData = 0 )
 	{
 		QNetworkRequest r = req;
@@ -52,6 +53,8 @@ protected:
 	}
 private:
 	QString m_exitHandler;
+#endif
+private:
 	CookieJar m_cookieJar;
 };
 
@@ -97,6 +100,7 @@ MainWindow::MainWindow(BrowserSettings* settings)
 	, m_loadRequested(true) // first load is treated as requested
 	, m_mousePlugged(false)
 	, m_forceExit(false)
+	, m_loadPageOn(false)
 {
 	m_progress = 0;
 	m_retryTimer = -1;
@@ -105,17 +109,16 @@ MainWindow::MainWindow(BrowserSettings* settings)
 	m_retryCount = 0;
 	m_locationEditAction = NULL;
 	m_zoomFactor = 1.0;
-	
+
 	//    QFile file;
 	//    file.setFileName(":/jquery.min.js");
 	//    file.open(QIODevice::ReadOnly);
 	//    jQuery = file.readAll();
 	//    file.close();
 	//! [1]
-	
-	
+
 	QNetworkProxyFactory::setUseSystemConfiguration(true);
-	
+
 	CustomWebPage *page = new CustomWebPage();
 	if ( m_settings->settings.disableJSTimeout )
 		page->setJSTimeoutMode(CustomWebPage::JST_Disabled);
@@ -129,7 +132,7 @@ MainWindow::MainWindow(BrowserSettings* settings)
 	//m_view->setAttribute( Qt::WA_NativeWindow, true );
 	m_view->setAttribute(Qt::WA_AcceptTouchEvents, false);
 #endif
-			
+
 	m_view->setAttribute(Qt::WA_InputMethodEnabled,true);
 	m_view->setPage(page);
 	qApp->setAutoSipEnabled(true);
@@ -137,38 +140,37 @@ MainWindow::MainWindow(BrowserSettings* settings)
 	m_locationEdit = new MyQLineEdit(this);
 	m_locationEdit->setSizePolicy(QSizePolicy::Expanding, m_locationEdit->sizePolicy().verticalPolicy());
 	connect(m_locationEdit, SIGNAL(returnPressed()), SLOT(changeLocation()));
-	
+
 	m_locationEditAction = new QWidgetAction(this);
 	m_locationEditAction->setDefaultWidget(m_locationEdit);
-	
+
 	m_dragAction = new QAction(this);
 	m_dragAction->setToolTip(tr("Toggle page dragging mode"));
 	m_dragAction->setCheckable(true);
 	m_dragAction->setIcon(QPixmap(":/drag.png"));
-	
+
 	m_zoomInAction = new QAction(this);
 	m_zoomInAction->setToolTip(tr("Zoom in"));
 	m_zoomInAction->setCheckable(false);
 	m_zoomInAction->setIcon(QPixmap(":/zoom_in.png"));
-	
+
 	m_zoomOutAction = new QAction(this);
 	m_zoomOutAction->setToolTip(tr("Zoom out"));
 	m_zoomOutAction->setCheckable(false);
 	m_zoomOutAction->setIcon(QPixmap(":/zoom_out.png"));
-	
+
 	m_zoomToFitAction = new QAction(this);
 	m_zoomToFitAction->setToolTip(tr("Zoom too fit content size"));
 	m_zoomToFitAction->setCheckable(true);
 	m_zoomToFitAction->setIcon(QPixmap(":/zoom_fit.png"));
-	
-	
+
 	m_settingsAction = new QAction(this);
 	m_settingsAction->setToolTip(tr("Settings"));
 	m_settingsAction->setIcon(QPixmap(":/settings.png"));
 	m_settingsAction->setCheckable(true);
-	
+
 	QString url = m_settings->settings.url;
-	
+
 	if (!url.isEmpty() && m_settings->settings.rememberLastUrl) {
 		m_locationEdit->setText(url);
 		killTimer(m_retryTimer); m_retryTimer=-1;
@@ -177,79 +179,110 @@ MainWindow::MainWindow(BrowserSettings* settings)
 		if (m_settings->settings.fallbackToDefaultUrl)
 			url = m_settings->settings.defaultUrl;
 	}
-	
+
 	m_nman = new CustomNetworkAccessManager(settings, this);
+
+
 	connect(m_nman, SIGNAL(finished(QNetworkReply *)), this,
 			SLOT(networkRequestFinished(QNetworkReply *)));
+
+#ifdef BASIC_AUTH
 	connect(m_nman, SIGNAL(authenticationRequired(QNetworkReply *, QAuthenticator *)),
 			this, SLOT(authenticationRequired(QNetworkReply *, QAuthenticator *)));
-	
+#else
+
+	m_autoLoginMan = new AutoLoginManager();
+
+	QNetworkCookieJar *cookies = m_nman->cookieJar();
+	m_autoLoginMan->setCookieJar(cookies);
+
+	connect(m_autoLoginMan, SIGNAL(autoLoggedIn()),
+                     this, SLOT(autoLoginCompleted()));
+#endif
+
 	m_view->page()->setNetworkAccessManager(m_nman);
 	//view->page()->setLinkDelegationPolicy(QWebPage::DelegateAllLinks);
 	//connect(view->page(), SIGNAL(linkClicked(QUrl)), this, SLOT(linkClicked(QUrl)));
-	
+
 	m_locationEdit->setText(url);
-	m_view->load(url);
+
 	//connect(m_view, SIGNAL(loadFinished(bool)), SLOT(adjustLocation()));
 	connect(m_view, SIGNAL(titleChanged(QString)), SLOT(adjustTitle()));
 	connect(m_view, SIGNAL(loadProgress(int)), SLOT(setProgress(int)));
 	connect(m_view, SIGNAL(loadFinished(bool)), SLOT(finishLoading(bool)));
 	connect(m_view, SIGNAL(loadStarted()), SLOT(resetProgress()));
 	connect(m_view, SIGNAL(urlChanged(const QUrl&)), SLOT(storeUrl(const QUrl&)));
-	
+
+
+	if (!m_settings->settings.waitFlagFile.isEmpty() && !QFile::exists(m_settings->settings.waitFlagFile)) {
+		m_view->setHtml(LOADPAGE_HTML);
+		m_loadPageOn = true;
+
+		connect(&m_watcher, SIGNAL(finished()), this, SLOT(waitForFlagFileFinished()));
+		m_future = QtConcurrent::run(this, &MainWindow::waitForFlagFile);
+		m_watcher.setFuture(m_future);
+	} else {
+#ifdef BASIC_AUTH
+		m_view->load(url);
+#else
+		m_autoLoginMan->setUser(m_settings->settings.defaultUser);
+		m_autoLoginMan->setPassword(m_settings->settings.defaultPassword);
+		m_autoLoginMan->attemptAutoLogin();
+#endif
+	}
+
 	m_flickCharm = new FlickCharm(this);
-	
+
 	createToolBar();
-	
-    connect(m_dragAction, SIGNAL(toggled(bool)), this, SLOT(toggleDragging(bool)));
-	
+
+	connect(m_dragAction, SIGNAL(toggled(bool)), this, SLOT(toggleDragging(bool)));
+
 	connect(m_zoomToFitAction, SIGNAL(toggled(bool)), this, SLOT(toggleZoomToFit(bool)));
 	m_zoomToFitAction->setChecked(false);
 	connect(m_zoomInAction, SIGNAL(triggered()), this, SLOT(zoomIn()));
 	connect(m_zoomOutAction, SIGNAL(triggered()), this, SLOT(zoomOut()));
-	
 
 
 	//locationEdit->installEventFilter(this);
 	//! [2]
-	
+
 	//    QMenu *viewMenu = menuBar()->addMenu(tr("&View"));
 	//    QAction* viewSourceAction = new QAction("Page Source", this);
 	//    connect(viewSourceAction, SIGNAL(triggered()), SLOT(viewSource()));
 	//    viewMenu->addAction(viewSourceAction);
-	
+
 	////! [3]
 	//    QMenu *effectMenu = menuBar()->addMenu(tr("&Effect"));
 	//    effectMenu->addAction("Highlight all links", this, SLOT(highlightAllLinks()));
-	
+
 	//    rotateAction = new QAction(this);
 	//    rotateAction->setIcon(style()->standardIcon(QStyle::SP_FileDialogDetailedView));
 	//    rotateActiotn->setCheckable(true);
 	//    rotateAction->setText(tr("Turn images upside down"));
 	//    connect(rotateAction, SIGNAL(toggled(bool)), this, SLOT(rotateImages(bool)));
 	//    effectMenu->addAction(rotateAction);
-	
+
 	//    QMenu *toolsMenu = menuBar()->addMenu(tr("&Tools"));
 	//    toolsMenu->addAction(tr("Remove GIF images"), this, SLOT(removeGifImages()));
 	//    toolsMenu->addAction(tr("Remove all inline frames"), this, SLOT(removeInlineFrames()));
 	//    toolsMenu->addAction(tr("Remove all object elements"), this, SLOT(removeObjectElements()));
 	//    toolsMenu->addAction(tr("Remove all embedded elements"), this, SLOT(removeEmbeddedElements()));
-	
+
 	setCentralWidget(m_view);
 	setUnifiedTitleAndToolBarOnMac(true);
-	
+
 	this->layout()->addWidget(m_settings);
 	m_settings->setAutoFillBackground(true);
 	connect(m_settingsAction, SIGNAL(toggled(bool)), this, SLOT(updateSettingsVisibility()));
 	connect(m_settingsAction, SIGNAL(toggled(bool)), m_settings, SLOT(setShown(bool)) );
-	
+
 	m_loginForm = new LoginForm;
 	this->layout()->addWidget(m_loginForm);
-	
+
 	m_settingsTimeout.setSingleShot(true);
 	m_inactivityTimeout.setInterval(m_settings->settings.inactivityTimeout * 1000);
 	m_inactivityFromBacklightOffTimeout.setInterval(m_settings->settings.inactivityFromBacklightOffTimeout * 1000);
-	
+
 	connect(m_settings, SIGNAL(showLoadingToggled(bool)), this, SLOT(setLoadButtonsVisible(bool)));
 	connect(m_settings, SIGNAL(showNavigationToggled(bool)), this, SLOT(setHistoryButtonsVisible(bool)));
 	connect(m_settings, SIGNAL(showSettingsToggled(bool)), this, SLOT(setSettingsButtonVisible(bool)));
@@ -264,19 +297,19 @@ MainWindow::MainWindow(BrowserSettings* settings)
 	connect(m_settings, SIGNAL(timeoutChanged(int)), this, SLOT(setSettingsTimeout(int)));
 
 	connect(m_settings, SIGNAL(toolbarVisibilityChanged(int)), this, SLOT(setToolbarVisibility(int)));
-	
-	QWebSettings::globalSettings()->setAttribute(QWebSettings::DeveloperExtrasEnabled, true);	
-	//QWebSettings::globalSettings()->setAttribute(QWebSettings::JavaEnabled, true);	
-	//QWebSettings::globalSettings()->setAttribute(QWebSettings::DeveloperExtrasEnabled, true);	
+
+	QWebSettings::globalSettings()->setAttribute(QWebSettings::DeveloperExtrasEnabled, true);
+	//QWebSettings::globalSettings()->setAttribute(QWebSettings::JavaEnabled, true);
+	//QWebSettings::globalSettings()->setAttribute(QWebSettings::DeveloperExtrasEnabled, true);
 	//QWebSettings::globalSettings()->setAttribute(QWebSettings::AcceleratedCompositingEnabled, true);
 	//QWebSettings::globalSettings()->setAttribute(QWebSettings::TiledBackingStoreEnabled, true);
-	
-	
+
+
 	//set cache
 	QWebSettings::setMaximumPagesInCache(4);
 	QWebSettings::setObjectCacheCapacities(0, 2*1024*1024, 8*1024*1024);
-	
-	
+
+
 	// apply startup settings from BrowserSettings
 	setFullscreen(m_settings->settings.fullscreen);
 	m_dragAction->setChecked(m_settings->settings.dragOnTouch);
@@ -285,11 +318,11 @@ MainWindow::MainWindow(BrowserSettings* settings)
 	setSettingsButtonVisible(m_settings->settings.showSettings);
 	setLocationVisible(m_settings->settings.showLocation);
 	setToolbarVisibility(m_settings->settings.toolbarVisibility);
-	setExitPattern(m_settings->settings.exitPattern);		
+	setExitPattern(m_settings->settings.exitPattern);
 	toggleZoomToFit(m_settings->settings.zoomToFit);
 	setScrollbarsVisible(!m_settings->settings.hideScrollbars);
 	setZoomButtonVisible(m_settings->settings.showZoomButton);
-    setSettingsTimeout(m_settings->settings.settingsTimeout);
+	setSettingsTimeout(m_settings->settings.settingsTimeout);
 	qApp->setApplicationName(m_settings->settings.userAgent);
 
 	connect(&m_settingsTimeout, SIGNAL(timeout()), m_settingsAction, SLOT(toggle()));
@@ -308,9 +341,9 @@ MainWindow::MainWindow(BrowserSettings* settings)
 		qWarning() << "Inactivity from backlight off timeout unset";
 	}
 #endif
-	
+
 	updateSettingsVisibility();
-	
+
     //
     // External DBUS communication
     //
@@ -339,13 +372,38 @@ MainWindow::MainWindow(BrowserSettings* settings)
     m_view->installEventFilter(this);
 }
 
+
+void MainWindow::waitForFlagFile() {
+	for (int i = 0; i < 15; i++) {
+		sleep(1);
+		if (QFile::exists(m_settings->settings.waitFlagFile) || !m_loadPageOn)
+			return;
+	}
+
+	qWarning() << "Timeout waiting for" << m_settings->settings.waitFlagFile;
+	exit(1);
+}
+
+void MainWindow::waitForFlagFileFinished() {
+	if (!m_loadPageOn)
+		return;
+
+#ifdef BASIC_AUTH
+	m_view->load(m_settings->settings.defaultUrl);
+#else
+	m_autoLoginMan->setUser(m_settings->settings.defaultUser);
+	m_autoLoginMan->setPassword(m_settings->settings.defaultPassword);
+	m_autoLoginMan->attemptAutoLogin();
+#endif
+}
+
 bool MainWindow::eventFilter(QObject *o, QEvent *e)
 {
 	Q_UNUSED(o);
 
     //qDebug() << "MainWindow::eventFilter event: " << e->type();
 
-	switch(e->type()) 
+	switch(e->type())
 	{
 	case QEvent::KeyPress:
 		resetInactivityTimers(true);
@@ -360,7 +418,7 @@ bool MainWindow::eventFilter(QObject *o, QEvent *e)
 			m_lastPressedPos = ((QMouseEvent*)e)->pos();
 		}
 		break;
-		
+
 	case QEvent::MouseButtonRelease:
 		m_settingsTimeout.stop();
 		resetInactivityTimers(true);
@@ -674,7 +732,7 @@ void MainWindow::toggleZoomToFit(bool zoomToFit)
 		calcZoom();
 		m_view->setZoomFactor(m_zoomFactor);
 	}
-	
+
 	m_view->triggerPageAction(QWebPage::Reload);
 	m_zoomToFitAction->setChecked(zoomToFit);
 	m_zoomInAction->setDisabled(zoomToFit);
@@ -736,11 +794,11 @@ void MainWindow::adjustLocation()
 			m_settings->settings.url = urlString;
 			m_settings->saveSettings();
 		}
-		killTimer(m_retryTimer); m_retryTimer=-1; 
+		killTimer(m_retryTimer); m_retryTimer=-1;
 		m_retryCount = 0;
 		if (m_autoShowLocationBar && m_toolBar) {
 			removeToolBar(m_toolBar);
-		}		
+		}
 	}
 }
 
@@ -823,11 +881,11 @@ void MainWindow::setProgress(int p)
 		m_progress = p;
 	}
 	adjustTitle();
-	
+
 	if (m_progress <= 0 || m_progress >= 100) {
 		qWarning() << "Setting progress to"  << m_progress << "assuming load finished";
 		finishLoading(true);
-	}	
+	}
 }
 //! [5]
 
@@ -836,10 +894,11 @@ void MainWindow::finishLoading(bool ok)
 {
 	Q_UNUSED(ok);
 
+	m_loadPageOn = false;
 	m_progress = -1;
 	setCursorWaiting(false);
 	adjustTitle();
-	
+
 	bool finishedWithError = false;
 	if (m_loadRequested && !m_view->page()->bytesReceived()) { // some error in main request (no bytes received)
 		finishedWithError = true;
@@ -856,7 +915,7 @@ void MainWindow::finishLoading(bool ok)
 				if (m_autoShowLocationBar && !m_toolBar) {
 					createToolBar();
 				}
-				
+
 				if (m_loadingInitialPage)
 				{
 					m_loadingInitialPage = false;
@@ -864,9 +923,9 @@ void MainWindow::finishLoading(bool ok)
 					{
 						killTimer(m_retryTimer);
 						m_retryCount = 0;
-						
+
 						m_locationEdit->setText(m_settings->settings.defaultUrl);
-						m_retryTimer = startTimer(100);					
+						m_retryTimer = startTimer(100);
 					}
 				}
 			}
@@ -875,16 +934,16 @@ void MainWindow::finishLoading(bool ok)
 		killTimer(m_retryTimer);
 
 	qWarning() << "Finished loading!";
-	
+
 	// finished main load
 	if (m_loadRequested && finishedWithError) {
-		if ((!m_locationEdit->hasFocus()) && (!m_settings->inputHasFocus())) 
+		if ((!m_locationEdit->hasFocus()) && (!m_settings->inputHasFocus()))
 			qWarning() << "Load finished with error => retry in " << m_settings->settings.reloadRetryTimeout << " sec";
 		else
-			qWarning() << "Load finished with error, but edit field is focused"; 
+			qWarning() << "Load finished with error, but edit field is focused";
 	} else {
 		qWarning() << "Page loaded successfully!";
-		m_loadingInitialPage = false;	
+		m_loadingInitialPage = false;
 
 		if (m_loadRequested)
 		{
@@ -893,9 +952,9 @@ void MainWindow::finishLoading(bool ok)
 			}
 		}
 	}
-	
+
 	m_loadRequested = false; // more finished load can occur because of ajax but the byteReceived will be zero
-	
+
 	if (m_settings->settings.zoomToFit) {
 		calcZoom();
 	}
@@ -906,9 +965,9 @@ void MainWindow::finishLoading(bool ok)
 	}
 
 	adjustVerticalScrollBar();
-	
+
 	//    view->page()->mainFrame()->evaluateJavaScript(jQuery);
-	
+
 	//    rotateImages(rotateAction->isChecked());
 }
 //! [6]
@@ -958,41 +1017,33 @@ void MainWindow::removeEmbeddedElements()
 	m_view->page()->mainFrame()->evaluateJavaScript(code);
 }
 
-void MainWindow::bruteForceAutoReload()
+#ifndef BASIC_AUTH
+void MainWindow::autoLoginCompleted()
 {
-	qDebug() << "Quitting after Brute Force detection";
-
-	qApp->quit();
+    qDebug() << "autoLoginCompleted. Loading default url" << m_settings->settings.defaultUrl;
+    m_view->load(m_settings->settings.defaultUrl);
 }
+#endif
 
 void MainWindow::networkRequestFinished(QNetworkReply * reply)
 {
-	//qDebug() << "Loading finished" << reply->url();
+	Q_UNUSED(reply);
 
-	switch (reply->error()) {
-	    	case QNetworkReply::NoError:
-			break;
-		// HTTP status 429 Too Many Requests
-		case QNetworkReply::UnknownContentError:
-		{
-			QByteArray retryAfter = reply->rawHeader("Retry-After");
-			if (!retryAfter.isEmpty()) {
-				qDebug() << "Brute Force prevention in place - Retry-After" << retryAfter;
-
-				int ra = retryAfter.toInt() * 1000;
-
-				QTimer::singleShot(ra, this, SLOT(bruteForceAutoReload()));
-			}
-			break;
+#ifdef EXITPATTERN_CHECK_ON_REPLY
+	if (!m_exitHandler.isEmpty()) {
+		// Quits application is url matches the exit pattern
+		if (reply->url().toString().contains(m_exitHandler)) {
+			qWarning() << "Quitting on reply exit url";
+			qApp->quit();
 		}
-		default:
-			qDebug() << "Unhandled error: " << reply->error();
-			break;
 	}
+#endif
 
-	reply->deleteLater();
+	//	qDebug() << "Loading finished" << reply->url();
 }
 
+
+#ifdef BASIC_AUTH
 void MainWindow::authenticationRequired(QNetworkReply * reply, QAuthenticator * authenticator)
 {
 	Q_UNUSED(reply);
@@ -1027,6 +1078,7 @@ void MainWindow::authenticationRequired(QNetworkReply * reply, QAuthenticator * 
 		m_authRetries++;
 	}
 }
+#endif //BASIC_AUTH
 
 void MainWindow::calcZoom()
 {
@@ -1132,7 +1184,11 @@ void MainWindow::setLocationVisible(bool visible)
 
 void MainWindow::setExitPattern(const QString &pattern)
 {
+#ifdef EXITPATTERN_CHECK_ON_REPLY
+	m_exitHandler = pattern;
+#else
 	m_nman->setExitPattern(pattern);
+#endif
 }
 
 void MainWindow::setFullscreen(bool fullScreen)

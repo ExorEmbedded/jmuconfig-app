@@ -8,6 +8,7 @@ greaterThan(QT_MAJOR_VERSION, 4) {
 }
 
 DEFINES += HAS_WEBKIT X11_INPUT_IMPL
+DEFINES += EXITPATTERN_CHECK_ON_REPLY
 
 CONFIG += console
 HEADERS =   mainwindow.h \
@@ -15,6 +16,7 @@ HEADERS =   mainwindow.h \
     browsersettings.h \
     cookiejar.h \
     epadinterface.h \
+    autoLoginManager.h \
     loginform.h
 SOURCES =   main.cpp \
             mainwindow.cpp \
@@ -22,7 +24,8 @@ SOURCES =   main.cpp \
     browsersettings.cpp \
     cookiejar.cpp \
     epadinterface.cpp \
-    loginform.cpp
+    autoLoginManager.cpp \
+    loginform.cpp 
 RESOURCES = \
     icons.qrc
 

@@ -58,13 +58,14 @@ public:
 		int memAvailableRefreshMB;
 		int memAvailableExitMB;
 		int memAvailableExitFromBacklightOffMB;
-        int reloadRetryTimeout;
-        int numLoadRetries;
+		int reloadRetryTimeout;
+		int numLoadRetries;
 		bool disableJSTimeout;
 		bool reloadOnJSTimeout;
-		
+		QString waitFlagFile;
+
 		// Default initialization
-		Settings() 
+		Settings()
 			: showLocation(true)
 			, showNavigation(true)
 			, showLoading(true)
@@ -90,11 +91,12 @@ public:
 			, userAgent("WebkitBrowser")
 			, disableJSTimeout(false)
 			, reloadOnJSTimeout(false)
+			, waitFlagFile()
 		{}
 	} settings;
-	
+
 	bool inputHasFocus();
-	
+
 public slots:
 	/*! Init from qsettings */
 	void initFromSettings();
@@ -102,7 +104,7 @@ public slots:
 	void initFromCommandLine();
 	/*! Save modified settings to file */
 	void saveSettings();
-	
+
 signals:
 	void showNavigationToggled(bool);
 	void showLoadingToggled(bool);

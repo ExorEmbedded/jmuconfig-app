@@ -258,6 +258,11 @@ void BrowserSettings::initFromCommandLine()
 			settings.disableJSTimeout = true;
 		} else if (argument == "-reloadOnJSTimeout") {
 			settings.reloadOnJSTimeout = true;
+		} else if (argument == "-wff") {
+			if (i<args.size()-1) {
+				i++;
+				settings.waitFlagFile = args.at(i);
+			}
 		}
 #ifdef linux
 		else if (argument == "-r") {
@@ -266,10 +271,10 @@ void BrowserSettings::initFromCommandLine()
 				i++;
 				setpriority(PRIO_PROCESS, 0, args.at(i).toInt());
 			}
-		} 
+		}
 #endif
 	}
-		
+
 	/*! Exit handler pattern, used to exit app when a url containing the path is loaded */
 	if (args.contains("-x")) {
 		int exitIdx = args.indexOf("-x");
@@ -278,8 +283,8 @@ void BrowserSettings::initFromCommandLine()
 			settings.exitPattern = args.at(exitIdx+1);
 		}
 	}
-	
-	
+
+
 }
 
 void BrowserSettings::showEvent(QShowEvent* s)
