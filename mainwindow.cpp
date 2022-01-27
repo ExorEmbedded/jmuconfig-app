@@ -10,6 +10,7 @@
 #endif
 #include <unistd.h>
 #include <QNetworkAccessManager>
+#include <QtConcurrent>
 #include "flickcharm.h"
 #include "mainwindow.h"
 #include "browsersettings.h"

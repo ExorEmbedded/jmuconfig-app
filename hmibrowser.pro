@@ -2,7 +2,7 @@ TARGET=WebkitBrowser
 
 
 greaterThan(QT_MAJOR_VERSION, 4) {
-    QT += widgets webkitwidgets webkit dbus
+    QT += widgets webkitwidgets webkit dbus concurrent
 } else {
     QT      +=  webkit network gui dbus
 }
