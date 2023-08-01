@@ -375,7 +375,10 @@ MainWindow::MainWindow(BrowserSettings* settings)
 
 
 void MainWindow::waitForFlagFile() {
-	for (int i = 0; i < 15; i++) {
+	// BSP-5166 Panel dies / hangs 40 seconds after booting configos on slow devices
+	// We don't know how long System Settings will take, so might as well wait indefinitely
+	// for (int i = 0; i < 15; i++) {
+	while (true) {
 		sleep(1);
 		if (QFile::exists(m_settings->settings.waitFlagFile) || !m_loadPageOn)
 			return;
