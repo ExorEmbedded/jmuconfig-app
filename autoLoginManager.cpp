@@ -26,8 +26,8 @@ void AutoLoginManager::attemptAutoLogin()
 
 void AutoLoginManager::replyFinished(QNetworkReply* reply)
 {
-    qDebug() << "Autologin: Attempting login for user " 
-	    << m_username << " and password " << m_password;
+    qDebug() << "Autologin: Attempting login ";
+//	    << m_username << " and password " << m_password;
 
     QNetworkCookieJar * cookieJar = this->cookieJar();
 
